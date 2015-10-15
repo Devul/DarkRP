@@ -1,28 +1,35 @@
+AddCSLuaFile()
+
 if SERVER then
-	AddCSLuaFile("shared.lua")
+    AddCSLuaFile("cl_menu.lua")
 end
 
 if CLIENT then
-	SWEP.PrintName = "Keys"
-	SWEP.Slot = 1
-	SWEP.SlotPos = 3
-	SWEP.DrawAmmo = false
-	SWEP.DrawCrosshair = false
+    SWEP.PrintName = "Keys"
+    SWEP.Slot = 1
+    SWEP.SlotPos = 1
+    SWEP.DrawAmmo = false
+    SWEP.DrawCrosshair = false
+
+    include("cl_menu.lua")
 end
 
-SWEP.Author = "Rick Darkaliono, philxyz"
-SWEP.Instructions = "Left click to lock. Right click to unlock"
+SWEP.Author = "DarkRP Developers"
+SWEP.Instructions = "Left click to lock\nRight click to unlock\nReload for door settings or animation menu"
 SWEP.Contact = ""
 SWEP.Purpose = ""
 
-SWEP.ViewModel = Model("models/weapons/v_hands.mdl")
+SWEP.WorldModel = ""
 
 SWEP.ViewModelFOV = 62
 SWEP.ViewModelFlip = false
-SWEP.AnimPrefix	 = "rpg"
+SWEP.AnimPrefix  = "rpg"
 
-SWEP.Spawnable = false
-SWEP.AdminSpawnable = true
+SWEP.UseHands = true
+
+SWEP.Spawnable = true
+SWEP.AdminOnly = true
+SWEP.Category = "DarkRP (Utility)"
 SWEP.Sound = "doors/door_latch3.wav"
 SWEP.Primary.ClipSize = -1
 SWEP.Primary.DefaultClip = 0
@@ -35,134 +42,107 @@ SWEP.Secondary.Automatic = false
 SWEP.Secondary.Ammo = ""
 
 function SWEP:Initialize()
-	self:SetWeaponHoldType("normal")
+    self:SetHoldType("normal")
 end
 
 function SWEP:Deploy()
-	if SERVER then
-		self.Owner:DrawWorldModel(false)
-	end
+    if CLIENT or not IsValid(self:GetOwner()) then return true end
+    self:GetOwner():DrawWorldModel(false)
+    return true
+end
+
+function SWEP:Holster()
+    return true
+end
+
+function SWEP:PreDrawViewModel()
+    return true
+end
+
+local function lookingAtLockable(ply, ent)
+    local eyepos = ply:EyePos()
+    return IsValid(ent)             and
+        ent:isKeysOwnable()         and
+        not ent:getKeysNonOwnable() and
+        (
+            ent:isDoor()    and eyepos:Distance(ent:GetPos()) < 65
+            or
+            ent:IsVehicle() and eyepos:Distance(ent:NearestPoint(eyepos)) < 100
+        )
+
+end
+
+local function lockUnlockAnimation(ply, snd)
+    ply:EmitSound("npc/metropolice/gear" .. math.floor(math.Rand(1,7)) .. ".wav")
+    timer.Simple(0.9, function() if IsValid(ply) then ply:EmitSound(snd) end end)
+
+    local RP = RecipientFilter()
+    RP:AddAllPlayers()
+
+    umsg.Start("anim_keys", RP)
+        umsg.Entity(ply)
+        umsg.String("usekeys")
+    umsg.End()
+
+    ply:AnimRestartGesture(GESTURE_SLOT_ATTACK_AND_RELOAD, ACT_GMOD_GESTURE_ITEM_PLACE, true)
+end
+
+local function doKnock(ply, sound)
+    ply:EmitSound(sound, 100, math.random(90, 110))
+    umsg.Start("anim_keys", RP)
+        umsg.Entity(ply)
+        umsg.String("knocking")
+    umsg.End()
+
+    ply:AnimRestartGesture(GESTURE_SLOT_ATTACK_AND_RELOAD, ACT_HL2MP_GESTURE_RANGE_ATTACK_FIST, true)
 end
 
 function SWEP:PrimaryAttack()
-	local trace = self.Owner:GetEyeTrace()
+    local trace = self:GetOwner():GetEyeTrace()
 
-	if not IsValid(trace.Entity) or not trace.Entity:IsOwnable() or (trace.Entity.DoorData and trace.Entity.DoorData.NonOwnable) or (trace.Entity:IsDoor() and self.Owner:EyePos():Distance(trace.Entity:GetPos()) > 65) or (trace.Entity:IsVehicle() and self.Owner:EyePos():Distance(trace.Entity:GetPos()) > 100) then
-		if CLIENT then RunConsoleCommand("_DarkRP_AnimationMenu") end
-		return
-	end
+    if not lookingAtLockable(self:GetOwner(), trace.Entity) then return end
 
-	trace.Entity.DoorData = trace.Entity.DoorData or {}
+    self:SetNextPrimaryFire(CurTime() + 0.3)
 
-	local Team = self.Owner:Team()
-	local DoorData = table.Copy(trace.Entity.DoorData or {}) -- Copy table to make non-permanent changes
-	if SERVER and DoorData.TeamOwn then
-		local decoded = {}
-		for k, v in pairs(string.Explode("\n", DoorData.TeamOwn)) do
-			if v and v != "" then
-				decoded[tonumber(v)] = true
-			end
-		end
-		DoorData.TeamOwn = decoded
-	end
-	if trace.Entity:OwnedBy(self.Owner) or (DoorData.GroupOwn and table.HasValue(RPExtraTeamDoors[DoorData.GroupOwn] or {}, Team)) or (DoorData.TeamOwn and DoorData.TeamOwn[Team]) then
-		if SERVER then
-			self.Owner:EmitSound("npc/metropolice/gear".. math.floor(math.Rand(1,7)) ..".wav")
-			trace.Entity:KeysLock() -- Lock the door immediately so it won't annoy people
+    if CLIENT then return end
 
-			timer.Simple(0.9, function() if IsValid(self.Owner) then self.Owner:EmitSound(self.Sound) end end)
-
-			local RP = RecipientFilter()
-			RP:AddAllPlayers()
-
-			umsg.Start("anim_keys", RP)
-				umsg.Entity(self.Owner)
-				umsg.String("usekeys")
-			umsg.End()
-			self.Owner:AnimRestartGesture(GESTURE_SLOT_ATTACK_AND_RELOAD, ACT_GMOD_GESTURE_ITEM_PLACE, true)
-		end
-		self.Weapon:SetNextPrimaryFire(CurTime() + 0.3)
-	else
-		if trace.Entity:IsVehicle() and SERVER then
-			GAMEMODE:Notify(self.Owner, 1, 3, "You don't own this vehicle!")
-		elseif not trace.Entity:IsVehicle() then
-			if SERVER then self.Owner:EmitSound("physics/wood/wood_crate_impact_hard2.wav", 100, math.random(90, 110))
-				umsg.Start("anim_keys", RP)
-					umsg.Entity(self.Owner)
-					umsg.String("knocking")
-				umsg.End()
-
-				self.Owner:AnimRestartGesture(GESTURE_SLOT_ATTACK_AND_RELOAD, ACT_HL2MP_GESTURE_RANGE_ATTACK_FIST, true)
-			end
-		end
-		self.Weapon:SetNextPrimaryFire(CurTime() + 0.2)
-	end
+    if self:GetOwner():canKeysLock(trace.Entity) then
+        trace.Entity:keysLock() -- Lock the door immediately so it won't annoy people
+        lockUnlockAnimation(self:GetOwner(), self.Sound)
+    elseif trace.Entity:IsVehicle() then
+        DarkRP.notify(self:GetOwner(), 1, 3, DarkRP.getPhrase("do_not_own_ent"))
+    else
+        doKnock(self:GetOwner(), "physics/wood/wood_crate_impact_hard2.wav")
+    end
 end
 
 function SWEP:SecondaryAttack()
-	local trace = self.Owner:GetEyeTrace()
+    local trace = self:GetOwner():GetEyeTrace()
 
-	if not IsValid(trace.Entity) or not trace.Entity:IsOwnable() or (trace.Entity.DoorData and trace.Entity.DoorData.NonOwnable) or (trace.Entity:IsDoor() and self.Owner:EyePos():Distance(trace.Entity:GetPos()) > 65) or (trace.Entity:IsVehicle() and self.Owner:EyePos():Distance(trace.Entity:GetPos()) > 100) then
-		if CLIENT then RunConsoleCommand("_DarkRP_AnimationMenu") end
-		return
-	end
+    if not lookingAtLockable(self:GetOwner(), trace.Entity) then return end
 
-	local Team = self.Owner:Team()
-	local DoorData = table.Copy(trace.Entity.DoorData or {}) -- Copy table to make non-permanent changes
-	if SERVER and DoorData.TeamOwn then
-		local decoded = {}
-		for k, v in pairs(string.Explode("\n", DoorData.TeamOwn)) do
-			if v and v != "" then
-				decoded[tonumber(v)] = true
-			end
-		end
-		DoorData.TeamOwn = decoded
-	end
-	if trace.Entity:OwnedBy(self.Owner) or (DoorData.GroupOwn and table.HasValue(RPExtraTeamDoors[DoorData.GroupOwn] or {}, Team)) or (DoorData.TeamOwn and DoorData.TeamOwn[Team]) then
-		if SERVER then
-			self.Owner:EmitSound("npc/metropolice/gear".. math.floor(math.Rand(1,7)) ..".wav")
-			trace.Entity:KeysUnLock() -- Unlock the door immediately so it won't annoy people
+    self:SetNextSecondaryFire(CurTime() + 0.3)
 
-			timer.Simple(0.9, function() if IsValid(self.Owner) then self.Owner:EmitSound(self.Sound) end end)
+    if CLIENT then return end
 
-			umsg.Start("anim_keys", RP)
-				umsg.Entity(self.Owner)
-				umsg.String("usekeys")
-			umsg.End()
-			self.Owner:AnimRestartGesture(GESTURE_SLOT_ATTACK_AND_RELOAD, ACT_GMOD_GESTURE_ITEM_PLACE, true)
-		end
-		self.Weapon:SetNextSecondaryFire(CurTime() + 0.3)
-	else
-		if trace.Entity:IsVehicle() and SERVER then
-			GAMEMODE:Notify(self.Owner, 1, 3, "You don't own this vehicle!")
-		elseif not trace.Entity:IsVehicle() then
-			if SERVER then self.Owner:EmitSound("physics/wood/wood_crate_impact_hard3.wav", 100, math.random(90, 110))
-				umsg.Start("anim_keys", RP)
-					umsg.Entity(self.Owner)
-					umsg.String("knocking")
-				umsg.End()
-
-				self.Owner:AnimRestartGesture(GESTURE_SLOT_ATTACK_AND_RELOAD, ACT_HL2MP_GESTURE_RANGE_ATTACK_FIST, true)
-			end
-		end
-		self.Weapon:SetNextSecondaryFire(CurTime() + 0.2)
-	end
+    if self:GetOwner():canKeysUnlock(trace.Entity) then
+        trace.Entity:keysUnLock() -- Unlock the door immediately so it won't annoy people
+        lockUnlockAnimation(self:GetOwner(), self.Sound)
+    elseif trace.Entity:IsVehicle() then
+        DarkRP.notify(self:GetOwner(), 1, 3, DarkRP.getPhrase("do_not_own_ent"))
+    else
+        doKnock(self:GetOwner(), "physics/wood/wood_crate_impact_hard3.wav")
+    end
 end
 
-SWEP.OnceReload = false
 function SWEP:Reload()
-	local trace = self.Owner:GetEyeTrace()
-	if not IsValid(trace.Entity) or (IsValid(trace.Entity) and ((not trace.Entity:IsDoor() and not trace.Entity:IsVehicle()) or self.Owner:EyePos():Distance(trace.HitPos) > 200)) then
-		if not self.OnceReload then
-			if SERVER then GAMEMODE:Notify(self.Owner, 1, 3, "You need to be looking at a door/vehicle in order to bring up the menu") end
-			self.OnceReload = true
-			timer.Simple(3, function() self.OnceReload = false end)
-		end
-		return
-	end
-	if SERVER then
-		umsg.Start("KeysMenu", self.Owner)
-			umsg.Bool(self.Owner:GetEyeTrace().Entity:IsVehicle())
-		umsg.End()
-	end
+    local trace = self:GetOwner():GetEyeTrace()
+    if not IsValid(trace.Entity) or (IsValid(trace.Entity) and ((not trace.Entity:isDoor() and not trace.Entity:IsVehicle()) or self.Owner:EyePos():Distance(trace.HitPos) > 200)) then
+        if CLIENT then RunConsoleCommand("_DarkRP_AnimationMenu") end
+        return
+    end
+    if SERVER then
+        umsg.Start("KeysMenu", self:GetOwner())
+        umsg.End()
+    end
 end

@@ -1,25 +1,24 @@
-if (SERVER) then
-	AddCSLuaFile("shared.lua")
-end
+AddCSLuaFile()
 
-if (CLIENT) then
-	SWEP.PrintName = "P228"
-	SWEP.Author = "PhilXYZ + FPtje"
-	SWEP.Slot = 1
-	SWEP.SlotPos = 5
-	SWEP.IconLetter = "y"
+if CLIENT then
+    SWEP.PrintName = "P228"
+    SWEP.Author = "DarkRP Developers"
+    SWEP.Slot = 1
+    SWEP.SlotPos = 1
+    SWEP.IconLetter = "y"
 
-	killicon.AddFont("weapon_p228", "CSKillIcons", SWEP.IconLetter, Color(255, 80, 0, 255))
+    killicon.AddFont("weapon_p2282", "CSKillIcons", SWEP.IconLetter, Color(255, 80, 0, 255))
 end
 
 SWEP.Base = "weapon_cs_base2"
 
 SWEP.Spawnable = true
-SWEP.AdminSpawnable = true
+SWEP.AdminOnly = false
+SWEP.Category = "DarkRP (Weapon)"
 
 SWEP.HoldType = "pistol"
 
-SWEP.ViewModel = "models/weapons/v_pist_p228.mdl"
+SWEP.ViewModel = "models/weapons/cstrike/c_pist_p228.mdl"
 SWEP.WorldModel = "models/weapons/w_pist_p228.mdl"
 
 SWEP.Weight = 5
@@ -42,5 +41,5 @@ SWEP.Secondary.DefaultClip = -1
 SWEP.Secondary.Automatic = false
 SWEP.Secondary.Ammo = "none"
 
-SWEP.IronSightsPos = Vector(4.7287, -2.5911, 2.7307)
-SWEP.IronSightsAng = Vector(0, 0, 0)
+SWEP.IronSightsPos = Vector(-5.985, -6.7, 2.87)
+SWEP.IronSightsAng = Vector(-0.3, -0.03, 0)

@@ -1,29 +1,27 @@
-if (SERVER) then
-	AddCSLuaFile("shared.lua")
-end
+AddCSLuaFile()
 
-if (CLIENT) then
-	SWEP.PrintName = "Mac10"
-	SWEP.Author = "Rickster"
-	SWEP.Slot = 2
-	SWEP.SlotPos = 4
-	SWEP.IconLetter = "l"
+if CLIENT then
+    SWEP.PrintName = "Mac10"
+    SWEP.Author = "DarkRP Developers"
+    SWEP.Slot = 2
+    SWEP.SlotPos = 0
+    SWEP.IconLetter = "l"
 
-	killicon.AddFont("weapon_mac10", "CSKillIcons", SWEP.IconLetter, Color(255, 80, 0, 255))
+    killicon.AddFont("weapon_mac102", "CSKillIcons", SWEP.IconLetter, Color(255, 80, 0, 255))
 end
 
 SWEP.Base = "weapon_cs_base2"
 
 SWEP.Spawnable = true
-SWEP.AdminSpawnable = true
+SWEP.AdminOnly = false
+SWEP.Category = "DarkRP (Weapon)"
 
-SWEP.ViewModel = "models/weapons/v_smg_mac10.mdl"
+SWEP.ViewModel = "models/weapons/cstrike/c_smg_mac10.mdl"
 SWEP.WorldModel = "models/weapons/w_smg_mac10.mdl"
 
 SWEP.Weight = 5
 SWEP.AutoSwitchTo = false
 SWEP.AutoSwitchFrom = false
-
 
 SWEP.HoldType = "ar2"
 
@@ -43,6 +41,5 @@ SWEP.Secondary.DefaultClip = -1
 SWEP.Secondary.Automatic = false
 SWEP.Secondary.Ammo = "none"
 
-SWEP.IronSightsPos = Vector (7.1437, -2.6467, 3.0592)
-SWEP.IronSightsAng = Vector (0.4833, 11.1981, 7.2364)
-
+SWEP.IronSightsPos = Vector(-9.08, -8, 2.6)
+SWEP.IronSightsAng = Vector(1.8, -7.06, -6.1)
