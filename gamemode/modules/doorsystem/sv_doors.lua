@@ -414,7 +414,6 @@ local function UnOwnAll(ply, cmd, args)
 end
 DarkRP.defineChatCommand("unownalldoors", UnOwnAll)
 
-
 local function SetDoorTitle(ply, args)
     local trace = ply:GetEyeTrace()
 
