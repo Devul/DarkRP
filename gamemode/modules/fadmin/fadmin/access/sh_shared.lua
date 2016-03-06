@@ -7,11 +7,11 @@ FAdmin.Access.ADMIN[0] = "user"
 FAdmin.Access.Groups = FAdmin.Access.Groups or {}
 FAdmin.Access.Privileges = FAdmin.Access.Privileges or {}
 
-function FAdmin.Access.AddGroup(name, admin_access/*0 = not admin, 1 = admin, 2 = superadmin*/, privs, immunity)
+function FAdmin.Access.AddGroup(name, admin_access/*0 = not admin, 1 = admin, 2 = superadmin*/, privs, immunity, fromCAMI)
     FAdmin.Access.Groups[name] = FAdmin.Access.Groups[name] or {ADMIN = admin_access, PRIVS = privs or {}, immunity = immunity}
 
     -- Register custom usergroups with CAMI
-    if name ~= "user" and name ~= "admin" and name ~= "superadmin" then
+    if name ~= "user" and name ~= "admin" and name ~= "superadmin" and not fromCAMI then
         CAMI.RegisterUsergroup({
             Name = name,
             Inherits = FAdmin.Access.ADMIN[admin_access]
@@ -46,11 +46,12 @@ function FAdmin.Access.OnUsergroupRegistered(usergroup, source)
     if source == "FAdmin" then return end
 
     local inheritRoot = CAMI.InheritanceRoot(usergroup.Inherits)
-    local admin_access = table.KeyFromValue(FAdmin.Access.ADMIN, inheritRoot)
+    local admin_access = table.KeyFromValue(FAdmin.Access.ADMIN, inheritRoot) or 1
 
     -- Add groups registered to CAMI to FAdmin. Assume privileges from either the usergroup it inherits or its inheritance root.
     -- Immunity is unknown and can be set by the user later. FAdmin immunity only applies to FAdmin anyway.
-    FAdmin.Access.AddGroup(usergroup.Name, admin_access, FAdmin.Access.Groups[usergroup.Inherits] or FAdmin.Access.Groups[inheritRoot] or {}, nil, true)
+    local parent = FAdmin.Access.Groups[usergroup.Inherits] or FAdmin.Access.Groups[inheritRoot] or {}
+    FAdmin.Access.AddGroup(usergroup.Name, admin_access, parent.PRIVS or {}, parent.immunity or 10, true)
 end
 
 
@@ -218,11 +219,20 @@ hook.Add("CAMI.SteamIDHasAccess", "FAdmin", function(actorSteam, privilegeName, 
 end)
 
 FAdmin.StartHooks["AccessFunctions"] = function()
+    FAdmin.Messages.RegisterNotification{
+        name = "setaccess",
+        hasTarget = true,
+        message = {"instigator", " set the usergroup of ", "targets", " to ", "extraInfo.1"},
+        receivers = "everyone",
+        writeExtraInfo = function(i) net.WriteString(i[1]) end,
+        readExtraInfo = function() return {net.ReadString()} end,
+        extraInfoColors = {Color(255, 102, 0)}
+    }
+
     FAdmin.Access.AddPrivilege("SetAccess", 3) -- AddPrivilege is shared, run on both client and server
     FAdmin.Access.AddPrivilege("SeeAdmins", 1)
     FAdmin.Commands.AddCommand("RemoveGroup", FAdmin.Access.RemoveGroup)
 
-    local printPlyGroup = function(ply) print(ply:Nick(), "\t|\t", ply:GetUserGroup()) end
     FAdmin.Commands.AddCommand("Admins", function(ply)
         if not FAdmin.Access.PlayerHasPrivilege(ply, "SeeAdmins") then return false end
         for k,v in pairs(player.GetAll()) do

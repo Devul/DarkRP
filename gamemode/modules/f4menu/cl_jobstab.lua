@@ -134,12 +134,14 @@ function PANEL:Init()
     self.leftButton:SetWide(40)
     self.leftButton:Dock(LEFT)
     self.leftButton.DoClick = function(btn) self:setScroll(self:getScroll() - 1) end
+    self.leftButton.DoDoubleClick = self.leftButton.DoClick
 
     self.rightButton = vgui.Create("F4MenuJobBecomeButton", self)
     self.rightButton:SetText(">")
     self.rightButton:SetWide(40)
     self.rightButton:Dock(RIGHT)
     self.rightButton.DoClick = function(btn) self:setScroll(self:getScroll() + 1) end
+    self.rightButton.DoDoubleClick = self.rightButton.DoClick
 
     self.iconList = vgui.Create("DPanelList", self)
 
@@ -307,7 +309,7 @@ end
 function PANEL:PerformLayout()
     local text = DarkRP.textWrap(DarkRP.deLocalise(self.job.description or ""):gsub('\t', ''), "Roboto Light", self:GetWide() - 43)
     surface.SetFont("Roboto Light")
-    local w, h = surface.GetTextSize(text)
+    local _, h = surface.GetTextSize(text)
     self.BaseClass.PerformLayout(self)
 
     self.innerPanel:SetPos(3, 3)

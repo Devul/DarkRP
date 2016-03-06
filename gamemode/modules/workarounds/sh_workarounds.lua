@@ -135,6 +135,13 @@ hook.Add("InitPostEntity", "DarkRP_Workarounds", function()
         concommand.Remove("gm_save")
     end
 
+    -- Remove that weird rooftop spawn in rp_downtown_v4c_v2
+    if game.GetMap() == "rp_downtown_v4c_v2" then
+        for k,v in pairs(ents.FindByClass("info_player_terrorist")) do
+            v:Remove()
+        end
+    end
+
     -- Fuck up URS.
     -- https://github.com/Aaron113/URS
     -- It fucks up every other mod that denies the spawning of entities
@@ -207,7 +214,7 @@ local allowedDoors = {
 }
 
 hook.Add("CanTool", "DoorExploit", function(ply, trace, tool)
-    if not IsValid(ply:GetActiveWeapon()) or not ply:GetActiveWeapon().GetToolObject or not ply:GetActiveWeapon():GetToolObject() then return end
+    if not IsValid(ply) or not ply:IsPlayer() or not IsValid(ply:GetActiveWeapon()) or not ply:GetActiveWeapon().GetToolObject or not ply:GetActiveWeapon():GetToolObject() then return end
 
     tool = ply:GetActiveWeapon():GetToolObject()
     if not allowedDoors[string.lower(tool:GetClientInfo("door_class") or "")] then
@@ -232,7 +239,7 @@ local deprecated = {
     {command = "rp_tell",               alternative = "admintell"               },
     {command = "rp_teamunban",          alternative = "teamunban"               },
     {command = "rp_teamban",            alternative = "teamban"                 },
-    {command = "rp_setsalary",          alternative = "setsalary"               },
+    {command = "rp_setsalary",          alternative = "setmoney"                },
     {command = "rp_setmoney",           alternative = "setmoney"                },
     {command = "rp_revokelicense",      alternative = "unsetlicense"            },
     {command = "rp_givelicense",        alternative = "setlicense"              },

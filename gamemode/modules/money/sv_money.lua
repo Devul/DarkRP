@@ -126,8 +126,8 @@ local function DropMoney(ply, args)
     end
     local amount = math.floor(tonumber(args))
 
-    if amount <= 1 then
-        DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("invalid_x", "argument", ">1"))
+    if amount < 1 then
+        DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("invalid_x", "argument", ">0"))
         return ""
     end
 
@@ -152,18 +152,17 @@ local function DropMoney(ply, args)
     ply.anim_DroppingItem = true
 
     timer.Simple(1, function()
-        if IsValid(ply) then
-            local trace = {}
-            trace.start = ply:EyePos()
-            trace.endpos = trace.start + ply:GetAimVector() * 85
-            trace.filter = ply
+        if not IsValid(ply) then return end
 
-            local tr = util.TraceLine(trace)
-            DarkRP.createMoneyBag(tr.HitPos, amount)
-            DarkRP.log(ply:Nick() .. " (" .. ply:SteamID() .. ") has dropped " .. DarkRP.formatMoney(amount))
-        else
-            DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("unable", "/dropmoney", ""))
-        end
+        local trace = {}
+        trace.start = ply:EyePos()
+        trace.endpos = trace.start + ply:GetAimVector() * 85
+        trace.filter = ply
+
+        local tr = util.TraceLine(trace)
+        local moneybag = DarkRP.createMoneyBag(tr.HitPos, amount)
+        hook.Call("playerDroppedMoney", nil, ply, amount, moneybag)
+        DarkRP.log(ply:Nick() .. " (" .. ply:SteamID() .. ") has dropped " .. DarkRP.formatMoney(amount))
     end)
 
     return ""
@@ -212,9 +211,11 @@ local function CreateCheque(ply, args)
             Cheque:SetPos(tr.HitPos)
             Cheque:Setowning_ent(ply)
             Cheque:Setrecipient(recipient)
-
-            Cheque:Setamount(math.Min(amount, 2147483647))
+            
+            local min_amount = math.Min(amount, 2147483647)
+            Cheque:Setamount(min_amount)
             Cheque:Spawn()
+            hook.Call("playerDroppedCheque", nil, ply, recipient, min_amount, Cheque)
         else
             DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("unable", "/cheque", ""))
         end
@@ -289,36 +290,57 @@ local function ccAddMoney(ply, args)
 end
 DarkRP.definePrivilegedChatCommand("addmoney", "DarkRP_SetMoney", ccAddMoney)
 
-local function ccSetSalary(ply, args)
-    if not tonumber(args[2]) then
-        DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("invalid_x", DarkRP.getPhrase("arguments"), ""))
-        return
-    end
+DarkRP.hookStub{
+    name = "playerDroppedMoney",
+    description = "Called when a player drops some money.",
+    parameters = {
+        {
+            name = "player",
+            description = "The player who dropped the money.",
+            type = "Player"
+        },
+        {
+            name = "amount",
+            description = "The amount of money dropped.",
+            type = "number"
+        },
+        {
+            name = "entity",
+            description = "The entity of the money that was dropped.",
+            type = "Entity"
+        }
+    },
+    returns = {
+    },
+    realm = "Server"
+}
 
-    local amount = math.floor(tonumber(args[2]))
-
-    if amount < 0 or amount > 150 then
-        DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("invalid_x", DarkRP.getPhrase("arguments"), tostring(args[2]) .. " (0-150)"))
-        return
-    end
-
-    local target = DarkRP.findPlayer(args[1])
-
-    if target then
-        DarkRP.storeSalary(target, amount)
-        target:setSelfDarkRPVar("salary", amount)
-
-        DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("you_set_x_salary", target:Nick(), DarkRP.formatMoney(amount), ""))
-
-        DarkRP.notify(target, 0, 4, DarkRP.getPhrase("x_set_your_salary", ply:EntIndex() == 0 and "Console" or ply:Nick(), DarkRP.formatMoney(amount), ""))
-        if ply:EntIndex() == 0 then
-            DarkRP.log("Console set " .. target:SteamName() .. "'s salary to " .. DarkRP.formatMoney(amount), Color(30, 30, 30))
-        else
-            DarkRP.log(ply:Nick() .. " (" .. ply:SteamID() .. ") set " .. target:SteamName() .. "'s salary to " .. DarkRP.formatMoney(amount), Color(30, 30, 30))
-        end
-    else
-        DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("could_not_find", tostring(args[1])))
-        return
-    end
-end
-DarkRP.definePrivilegedChatCommand("setsalary", "DarkRP_SetMoney", ccSetSalary)
+DarkRP.hookStub{
+    name = "playerDroppedCheque",
+    description = "Called when a player drops a cheque.",
+    parameters = {
+        {
+            name = "player",
+            description = "The player who dropped the cheque.",
+            type = "Player"
+        },
+        {
+            name = "player",
+            description = "The player the cheque was written to.",
+            type = "Player"
+        },
+        {
+            name = "amount",
+            description = "The amount of money the cheque has.",
+            type = "number"
+        },
+        {
+            name = "entity",
+            description = "The entity of the cheque that was dropped.",
+            type = "Entity"
+        }
+    },
+    returns = {
+    },
+    realm = "Server"
+}

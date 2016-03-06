@@ -74,7 +74,7 @@ function ENT:SetContents(s, c)
     self:Setcount(c)
 end
 
-function ENT:Use()
+function ENT:Use(activator, caller)
     if self.IsPocketed then return end
     if type(self.PlayerUse) == "function" then
         local val = self:PlayerUse(activator, caller)
@@ -83,15 +83,16 @@ function ENT:Use()
         return self.PlayerUse
     end
 
-    if not self.locked then
-        self.locked = true -- One activation per second
-        self.sparking = true
-        self:Setgunspawn(CurTime() + 1)
-        timer.Create(self:EntIndex() .. "crate", 1, 1, function()
-            if not IsValid(self) then return end
-            self.SpawnItem(self)
-        end)
-    end
+    if self.locked or self.USED then return end
+
+    self.locked = true -- One activation per second
+    self.USED = true
+    self.sparking = true
+    self:Setgunspawn(CurTime() + 1)
+    timer.Create(self:EntIndex() .. "crate", 1, 1, function()
+        if not IsValid(self) then return end
+        self.SpawnItem(self)
+    end)
 end
 
 function ENT:SpawnItem()
@@ -99,11 +100,10 @@ function ENT:SpawnItem()
     timer.Remove(self:EntIndex() .. "crate")
     self.sparking = false
     local count = self:Getcount()
-    local pos = self:GetPos()
     if count <= 1 then self:Remove() end
     local contents = self:Getcontents()
 
-    if CustomShipments[contents] and CustomShipments[contents].spawn then return CustomShipments[contents].spawn(self, CustomShipments[contents]) end
+    if CustomShipments[contents] and CustomShipments[contents].spawn then self.USED = false return CustomShipments[contents].spawn(self, CustomShipments[contents]) end
 
     local weapon = ents.Create("spawned_weapon")
 
@@ -132,6 +132,7 @@ function ENT:SpawnItem()
     count = count - 1
     self:Setcount(count)
     self.locked = false
+    self.USED = nil
 end
 
 function ENT:Think()

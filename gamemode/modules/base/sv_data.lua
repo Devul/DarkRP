@@ -10,7 +10,6 @@ local setUpNonOwnableDoors,
  Database initialize
  ---------------------------------------------------------*/
 function DarkRP.initDatabase()
-    local map = MySQLite.SQLStr(string.lower(game.GetMap()))
     MySQLite.begin()
         -- Gotta love the difference between SQLite and MySQL
         local AUTOINCREMENT = MySQLite.isMySQL() and "AUTO_INCREMENT" or "AUTOINCREMENT"
@@ -126,11 +125,11 @@ function DarkRP.initDatabase()
                     end
                 end
 
-                MySQLite.query("SHOW PRIVILEGES", function(data)
-                    if not data then return end
+                MySQLite.query("SHOW PRIVILEGES", function(privs)
+                    if not privs then return end
 
                     local found;
-                    for k,v in pairs(data) do
+                    for k,v in pairs(privs) do
                         if v.Privilege == "Trigger" then
                             found = true
                             break;
@@ -280,25 +279,20 @@ concommand.Add("rp_resetallmoney", resetAllMoney)
 function DarkRP.storeSalary(ply, amount)
     ply:setSelfDarkRPVar("salary", math.floor(amount))
 
-    MySQLite.query([[UPDATE darkrp_player SET salary = ]] .. amount .. [[ WHERE uid = ]] .. ply:UniqueID())
-
     return amount
 end
 
 function DarkRP.retrieveSalary(ply, callback)
     if not IsValid(ply) then return 0 end
 
-    if ply:getDarkRPVar("salary") then return callback and callback(ply:getDarkRPVar("salary")) end -- First check the cache.
+    local val =
+        ply:getJobTable() and ply:getJobTable().salary or
+        RPExtraTeams[GAMEMODE.DefaultTeam].salary or
+        (GM or GAMEMODE).Config.normalsalary
 
-    MySQLite.queryValue("SELECT salary FROM darkrp_player WHERE uid = " .. ply:UniqueID() .. ";", function(r)
-        local normal = GAMEMODE.Config.normalsalary
-        if not r then
-            ply:setSelfDarkRPVar("salary", normal)
-            callback(normal)
-        else
-            callback(r)
-        end
-    end)
+    if callback then callback(val) end
+
+    return val
 end
 
 /*---------------------------------------------------------------------------
@@ -318,7 +312,7 @@ function meta:restorePlayerData()
         if not info.rpname or info.rpname == "NULL" then info.rpname = string.gsub(self:SteamName(), "\\\"", "\"") end
 
         info.wallet = info.wallet or GAMEMODE.Config.startingmoney
-        info.salary = info.salary or GAMEMODE.Config.normalsalary
+        info.salary = DarkRP.retrieveSalary(self)
 
         self:setDarkRPVar("money", tonumber(info.wallet))
         self:setSelfDarkRPVar("salary", tonumber(info.salary))
@@ -332,7 +326,7 @@ function meta:restorePlayerData()
         self.DarkRPUnInitialized = true -- no information should be saved from here, or the playerdata might be reset
 
         self:setDarkRPVar("money", GAMEMODE.Config.startingmoney)
-        self:setSelfDarkRPVar("salary", GAMEMODE.Config.normalsalary)
+        self:setSelfDarkRPVar("salary", DarkRP.retrieveSalary(self))
         self:setDarkRPVar("rpname", string.gsub(self:SteamName(), "\\\"", "\""))
 
         error("Failed to retrieve player information from MySQL server")
@@ -358,8 +352,11 @@ function setUpNonOwnableDoors()
         for _, row in pairs(r) do
             local e = DarkRP.doorIndexToEnt(tonumber(row.idx))
 
-            if IsValid(e) and e:isKeysOwnable() then
-                e:setKeysNonOwnable(tobool(row.isDisabled))
+            if not IsValid(e) then continue end
+            if e:isKeysOwnable() then
+                if tobool(row.isDisabled) then
+                    e:setKeysNonOwnable(tobool(row.isDisabled))
+                end
                 if row.isLocked ~= nil then
                     if row.isLocked ~= "NULL" then e:Fire((tobool(row.isLocked) and "" or "un") .. "lock", "", 0) end
                 end
@@ -443,15 +440,14 @@ function setUpGroupDoors()
                 continue
             end
 
+            if not RPExtraTeamDoorIDs[row.doorgroup] then continue end
             ent:setDoorGroup(row.doorgroup)
         end
     end)
 end
 
 hook.Add("PostCleanupMap", "DarkRP.hooks", function()
-    timer.Simple(0.3, function() --Hahahhah, Gmod
-        setUpNonOwnableDoors()
-        setUpTeamOwnableDoors()
-        setUpGroupDoors()
-    end)
+    setUpNonOwnableDoors()
+    setUpTeamOwnableDoors()
+    setUpGroupDoors()
 end)

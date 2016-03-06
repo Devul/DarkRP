@@ -137,7 +137,6 @@ end
 function FAdmin.Access.PlayerSetGroup(ply, group)
     if not FAdmin.Access.Groups[group] then return end
     ply = isstring(ply) and FAdmin.FindPlayer(ply) and FAdmin.FindPlayer(ply)[1] or ply
-    local SteamID = type(ply) ~= "string" and IsValid(ply) and ply:SteamID() or ply
 
     if type(ply) ~= "string" and IsValid(ply) then
         ply:SetUserGroup(group)
@@ -145,14 +144,6 @@ function FAdmin.Access.PlayerSetGroup(ply, group)
 end
 
 hook.Remove("PlayerInitialSpawn", "PlayerAuthSpawn") -- Remove Garry's usergroup setter.
-
-local oldSetUsergroup = plyMeta.SetUserGroup
-function plyMeta:SetUserGroup(group, ...)
-    -- TODO: Move this call to the function above when the main admin mods have implemented CAMI
-    MySQLite.query("REPLACE INTO FAdmin_PlayerGroup VALUES(" .. MySQLite.SQLStr(self:SteamID()) .. ", " .. MySQLite.SQLStr(group) .. ");")
-
-    return oldSetUsergroup(self, group, ...)
-end
 
 -- Update the database only when an end users indicates that a player's usergroup is to be changed.
 hook.Add("CAMI.PlayerUsergroupChanged", "FAdmin", function(ply, old, new, source)
@@ -174,19 +165,16 @@ function FAdmin.Access.SetRoot(ply, cmd, args) -- FAdmin setroot player. Sets th
 
     for _, target in pairs(targets) do
         if IsValid(target) then
-            -- An end user changed the usergroup. Register with CAMI
-            CAMI.SignalUserGroupChanged(target, target:GetUserGroup(), "superadmin", "FAdmin")
-
             FAdmin.Access.PlayerSetGroup(target, "superadmin")
 
-            -- TODO: Remove this when ULX implements CAMI ;)
-            if ULib and ULib.ucl and ULib.ucl.groups and ULib.ucl.groups["superadmin"] then --Add to ULX
-                ULib.ucl.addUser(target:SteamID(), nil, nil, "superadmin")
-            end
+            -- An end user changed the usergroup. Register with CAMI
+            CAMI.SignalUserGroupChanged(target, target:GetUserGroup(), "superadmin", "FAdmin")
 
             FAdmin.Messages.SendMessage(ply, 2, "User set to superadmin!")
         end
     end
+
+    FAdmin.Messages.FireNotification("setaccess", ply, targets, {"superadmin"})
     return true, targets, "superadmin"
 end
 
@@ -294,12 +282,14 @@ function FAdmin.Access.SetAccess(ply, cmd, args)
     for _, target in pairs(targets) do
         if not IsValid(target) then continue end
 
+        FAdmin.Access.PlayerSetGroup(target, args[2])
+
         -- An end user changed the usergroup. Register with CAMI
         CAMI.SignalUserGroupChanged(target, target:GetUserGroup(), args[2], "FAdmin")
-
-        FAdmin.Access.PlayerSetGroup(target, args[2])
-        FAdmin.Messages.SendMessage(ply, 4, "User access set!")
     end
+
+    FAdmin.Messages.SendMessage(ply, 4, "User access set!")
+    FAdmin.Messages.FireNotification("setaccess", ply, targets, {args[2]})
     return true, targets, args[2]
 end
 

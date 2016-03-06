@@ -5,6 +5,20 @@ local pmeta = FindMetaTable("Player")
 Functions
 ---------------------------------------------------------------------------*/
 
+function meta:doorIndex()
+    return self:CreatedByMap() and self:MapCreationID() or nil
+end
+
+function DarkRP.doorToEntIndex(num)
+    local ent = ents.GetMapCreatedEntity(num)
+
+    return IsValid(ent) and ent:EntIndex() or nil
+end
+
+function DarkRP.doorIndexToEnt(num)
+    return ents.GetMapCreatedEntity(num) or NULL
+end
+
 function meta:isLocked()
     local save = self:GetSaveTable()
     return save and ((self:isDoor() and save.m_bLocked) or (self:IsVehicle() and save.VehicleLocked))
@@ -79,6 +93,8 @@ function meta:keysUnOwn(ply)
 
     if self:isMasterOwner(ply) then
         local doorData = self:getDoorData()
+        self:removeAllKeysExtraOwners()
+        self:setKeysTitle(nil)
         doorData.owner = nil
         DarkRP.updateDoorData(self, "owner")
     else
@@ -128,7 +144,15 @@ function pmeta:doPropertyTax()
     local price = 10
     local tax = price * numowned + math.random(-5, 5)
 
-    if self:canAfford(tax) then
+    local shouldTax, taxOverride = hook.Run("canPropertyTax", self, tax)
+
+    if shouldTax == false then return end
+
+    tax = taxOverride or tax
+
+    local canAfford = self:canAfford(tax)
+
+    if canAfford then
         if tax ~= 0 then
             self:addMoney(-tax)
             DarkRP.notify(self, 0, 5, DarkRP.getPhrase("property_tax", DarkRP.formatMoney(tax)))
@@ -137,6 +161,8 @@ function pmeta:doPropertyTax()
         DarkRP.notify(self, 1, 8, DarkRP.getPhrase("property_tax_cant_afford"))
         self:keysUnOwnAll()
     end
+
+    hook.Run("onPropertyTax", self, tax, canAfford)
 end
 
 function pmeta:initiateTax()
@@ -152,25 +178,36 @@ function pmeta:initiateTax()
         if not GAMEMODE.Config.wallettax then
             return -- Don't remove the hook in case it's turned on afterwards.
         end
+
         local money = self:getDarkRPVar("money")
         local mintax = GAMEMODE.Config.wallettaxmin / 100
         local maxtax = GAMEMODE.Config.wallettaxmax / 100 -- convert to decimals for percentage calculations
         local startMoney = GAMEMODE.Config.startingmoney
 
 
-        if money < (startMoney * 2) then
-            return -- Don't tax players if they have less than twice the starting amount
-        end
-
         -- Variate the taxes between twice the starting money ($1000 by default) and 200 - 2 times the starting money (100.000 by default)
         local tax = (money - (startMoney * 2)) / (startMoney * 198)
-              tax = math.Min(maxtax, mintax + (maxtax - mintax) * tax)
+        tax = math.Min(maxtax, mintax + (maxtax - mintax) * tax)
 
-        self:addMoney(-tax * money)
-        DarkRP.notify(self, 3, 7, DarkRP.getPhrase("taxday", math.Round(tax * 100, 3)))
+        local taxAmount = tax * money
+
+        local shouldTax, amount = hook.Run("canTax", self, taxAmount)
+
+        if shouldTax == false then return end
+
+        taxAmount = amount or taxAmount
+        taxAmount = math.Max(0, taxAmount)
+
+        self:addMoney(-taxAmount)
+        DarkRP.notify(self, 3, 7, DarkRP.getPhrase("taxday", math.Round(taxAmount / money * 100, 3)))
 
         hook.Call("onPaidTax", DarkRP.hooks, self, tax, money)
     end)
+end
+
+function GM:canTax(ply)
+    -- Don't tax players if they have less than twice the starting amount
+    if ply:getDarkRPVar("money") < (GAMEMODE.Config.startingmoney * 2) then return false end
 end
 
 /*---------------------------------------------------------------------------
@@ -266,7 +303,6 @@ end
 DarkRP.definePrivilegedChatCommand("toggleteamownable", "DarkRP_ChangeDoorSettings", SetDoorTeamOwnable)
 
 local function OwnDoor(ply)
-    local team = ply:Team()
     local trace = ply:GetEyeTrace()
 
     if not IsValid(trace.Entity) or not trace.Entity:isKeysOwnable() or ply:GetPos():Distance(trace.Entity:GetPos()) >= 200 then
@@ -319,13 +355,13 @@ local function OwnDoor(ply)
             return ""
         end
 
-        local iCost = hook.Call("get".. (trace.Entity:IsVehicle() and "Vehicle" or "Door") .. "Cost", GAMEMODE, ply, trace.Entity)
+        local iCost = hook.Call("get" .. (trace.Entity:IsVehicle() and "Vehicle" or "Door") .. "Cost", GAMEMODE, ply, trace.Entity)
         if not ply:canAfford(iCost) then
             DarkRP.notify(ply, 1, 4, trace.Entity:IsVehicle() and DarkRP.getPhrase("vehicle_cannot_afford") or DarkRP.getPhrase("door_cannot_afford"))
             return ""
         end
 
-        local bAllowed, strReason, bSuppress = hook.Call("playerBuy".. (trace.Entity:IsVehicle() and "Vehicle" or "Door"), GAMEMODE, ply, trace.Entity)
+        local bAllowed, strReason, bSuppress = hook.Call("playerBuy" .. (trace.Entity:IsVehicle() and "Vehicle" or "Door"), GAMEMODE, ply, trace.Entity)
         if bAllowed == false then
             if strReason and strReason ~= "" then
                 DarkRP.notify(ply, 1, 4, strReason)

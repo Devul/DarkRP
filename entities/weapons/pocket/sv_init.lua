@@ -270,7 +270,6 @@ local function onAdded(ply, ent, serialized)
     if not ent:IsValid() or not ent.DarkRPItem or not ent.Getowning_ent or not IsValid(ent:Getowning_ent()) then return end
 
     ply = ent:Getowning_ent()
-    local cmdname = string.gsub(ent.DarkRPItem.ent, " ", "_")
 
     ply:addCustomEntity(ent.DarkRPItem)
 end
@@ -286,6 +285,7 @@ function GAMEMODE:canPocket(ply, item)
     if GAMEMODE.Config.PocketBlacklist[class] then return false, DarkRP.getPhrase("cannot_pocket_x") end
     if string.find(class, "func_") then return false, DarkRP.getPhrase("cannot_pocket_x") end
     if item:IsRagdoll() then return false, DarkRP.getPhrase("cannot_pocket_x") end
+    if item:IsNPC() then return false, DarkRP.getPhrase("cannot_pocket_x") end
 
     local trace = ply:GetEyeTrace()
     if ply:EyePos():Distance(trace.HitPos) > 150 then return false end

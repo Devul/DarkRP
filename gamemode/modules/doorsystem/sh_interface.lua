@@ -1,45 +1,3 @@
-DarkRP.doorToEntIndex = DarkRP.stub{
-    name = "doorToEntIndex",
-    description = "Get an ENT index from a door index.",
-    parameters = {
-        {
-            name = "index",
-            description = "The door index",
-            type = "number",
-            optional = false
-        }
-    },
-    returns = {
-        {
-            name = "index",
-            description = "The ENT index",
-            type = "number",
-        }
-    },
-    metatable = DarkRP
-}
-
-DarkRP.doorIndexToEnt = DarkRP.stub{
-    name = "doorIndexToEnt",
-    description = "Get the entity of a door index (inverse of ent:doorIndexToEnt()). Note: the door MUST have been created by the map!",
-    parameters = {
-        {
-            name = "index",
-            description = "The door index",
-            type = "number",
-            optional = false
-        }
-    },
-    returns = {
-        {
-            name = "door",
-            description = "The door entity",
-            type = "Entity",
-        }
-    },
-    metatable = DarkRP
-}
-
 DarkRP.ENTITY.getDoorData = DarkRP.stub{
     name = "getDoorData",
     description = "Internal function to get the door/vehicle data.",
@@ -80,21 +38,6 @@ DarkRP.ENTITY.isDoor = DarkRP.stub{
             name = "answer",
             description = "Whether it's a door.",
             type = "boolean"
-        }
-    },
-    metatable = DarkRP.ENTITY
-}
-
-DarkRP.ENTITY.doorIndex = DarkRP.stub{
-    name = "doorIndex",
-    description = "Get the door index of a door. Use this to store door information in the database.",
-    parameters = {
-    },
-    returns = {
-        {
-            name = "index",
-            description = "The door index.",
-            type = "number"
         }
     },
     metatable = DarkRP.ENTITY
@@ -323,6 +266,66 @@ DarkRP.PLAYER.canKeysUnlock = DarkRP.stub{
         }
     },
     metatable = DarkRP.PLAYER
+}
+
+DarkRP.registerDoorVar = DarkRP.stub{
+    name = "registerDoorVar",
+    description = "Register a door variable by name. You should definitely register door variables. Registering DarkRPVars will make networking much more efficient.",
+    parameters = {
+        {
+            name = "name",
+            description = "The name of the door var.",
+            type = "string",
+            optional = false
+        },
+        {
+            name = "writeFn",
+            description = "The function that writes a value for this door var. Examples: net.WriteString, function(val) net.WriteUInt(val, 8) end.",
+            type = "function",
+            optional = false
+        },
+        {
+            name = "readFn",
+            description = "The function that reads and returns a value for this door var. Examples: net.ReadString, function() return net.ReadUInt(8) end.",
+            type = "function",
+            optional = false
+        }
+    },
+    returns = {
+    },
+    metatable = DarkRP
+}
+
+DarkRP.getDoorVars = DarkRP.stub{
+    name = "getDoorVars",
+    description = "Internal function, retrieves all the registered door variables.",
+    parameters = {
+
+    },
+    returns = {
+        {
+            name = "doorvars",
+            description = "The door variables, indexed by number",
+            type = "table"
+        }
+    },
+    metatable = DarkRP
+}
+
+DarkRP.getDoorVarsByName = DarkRP.stub{
+    name = "getDoorVarsByName",
+    description = "Internal function, retrieves all the registered door variables, indeded by their names.",
+    parameters = {
+
+    },
+    returns = {
+        {
+            name = "doorvars",
+            description = "The door variables, indexed by name",
+            type = "table"
+        }
+    },
+    metatable = DarkRP
 }
 
 DarkRP.hookStub{

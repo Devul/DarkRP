@@ -86,11 +86,11 @@ local function DrawHealth()
     local myHealth = localplayer:Health()
     Health = math.min(maxHealth, (Health == myHealth and Health) or Lerp(0.1, Health, myHealth))
 
-    local DrawHealth = math.Min(Health / maxHealth, 1)
-    local rounded = math.Round(3 * DrawHealth)
+    local healthRatio = math.Min(Health / maxHealth, 1)
+    local rounded = math.Round(3 * healthRatio)
     local Border = math.Min(6, rounded * rounded)
     draw.RoundedBox(Border, RelativeX + 4, RelativeY - 30, HUDWidth - 8, 20, ConVars.Healthbackground)
-    draw.RoundedBox(Border, RelativeX + 5, RelativeY - 29, (HUDWidth - 9) * DrawHealth, 18, ConVars.Healthforeground)
+    draw.RoundedBox(Border, RelativeX + 5, RelativeY - 29, (HUDWidth - 9) * healthRatio, 18, ConVars.Healthforeground)
 
     draw.DrawNonParsedText(math.Max(0, math.Round(myHealth)), "DarkRPHUD2", RelativeX + 4 + (HUDWidth - 8) / 2, RelativeY - 32, ConVars.HealthText, 1)
 
@@ -114,7 +114,7 @@ local function DrawInfo()
     draw.DrawNonParsedText(salaryText, "DarkRPHUD2", RelativeX + 4, RelativeY - HUDHeight + 5, ConVars.salary2, 0)
 
     surface.SetFont("DarkRPHUD2")
-    local w, h = surface.GetTextSize(salaryText)
+    local _, h = surface.GetTextSize(salaryText)
 
     draw.DrawNonParsedText(JobWalletText, "DarkRPHUD2", RelativeX + 5, RelativeY - HUDHeight + h + 6, ConVars.Job1, 0)
     draw.DrawNonParsedText(JobWalletText, "DarkRPHUD2", RelativeX + 4, RelativeY - HUDHeight + h + 5, ConVars.Job2, 0)
@@ -169,7 +169,7 @@ end)
 local VoiceChatTexture = surface.GetTextureID("voice/icntlk_pl")
 local function DrawVoiceChat()
     if localplayer.DRPIsTalking then
-        local chbxX, chboxY = chat.GetChatBoxPos()
+        local _, chboxY = chat.GetChatBoxPos()
 
         local Rotating = math.sin(CurTime() * 3)
         local backwards = 0
@@ -188,6 +188,8 @@ end
 local function LockDown()
     local chbxX, chboxY = chat.GetChatBoxPos()
     if GetGlobalBool("DarkRP_LockDown") then
+        local shouldDraw = hook.Call("HUDShouldDraw", GAMEMODE, "DarkRP_LockdownHUD")
+        if shouldDraw == false then return end
         local cin = (math.sin(CurTime()) + 1) / 2
         local chatBoxSize = math.floor(Scrh / 4)
         draw.DrawNonParsedText(DarkRP.getPhrase("lockdown_started"), "ScoreboardSubtitle", chbxX, chboxY + chatBoxSize, Color(cin * 255, 0, 255 - (cin * 255), 255), TEXT_ALIGN_LEFT)
@@ -201,6 +203,9 @@ usermessage.Hook("GotArrested", function(msg)
     local ArrestedUntil = msg:ReadFloat()
 
     Arrested = function()
+        local shouldDraw = hook.Call("HUDShouldDraw", GAMEMODE, "DarkRP_ArrestedHUD")
+        if shouldDraw == false then return end
+
         if CurTime() - StartArrested <= ArrestedUntil and localplayer:getDarkRPVar("Arrested") then
             draw.DrawNonParsedText(DarkRP.getPhrase("youre_arrested", math.ceil(ArrestedUntil - (CurTime() - StartArrested))), "DarkRPHUD1", Scrw / 2, Scrh - Scrh / 12, colors.white, 1)
         elseif not localplayer:getDarkRPVar("Arrested") then
@@ -237,7 +242,7 @@ local function DrawHUD()
     RelativeX, RelativeY = 0, Scrh
 
     shouldDraw = hook.Call("HUDShouldDraw", GAMEMODE, "DarkRP_LocalPlayerHUD")
-    shouldDraw = shouldDraw ~= false and (GAMEMODE.BaseClass.HUDShouldDraw(GAMEMODE, "DarkRP_LocalPlayerHUD") ~= false)
+    shouldDraw = shouldDraw ~= false
     if shouldDraw then
         --Background
         draw.RoundedBox(6, 0, Scrh - HUDHeight, HUDWidth, HUDHeight, ConVars.background)
@@ -357,7 +362,7 @@ Drawing death notices
 ---------------------------------------------------------------------------*/
 function GM:DrawDeathNotice(x, y)
     if not GAMEMODE.Config.showdeaths then return end
-    self.BaseClass:DrawDeathNotice(x, y)
+    self.Sandbox.DrawDeathNotice(self, x, y)
 end
 
 /*---------------------------------------------------------------------------
@@ -383,7 +388,7 @@ function GM:HUDShouldDraw(name)
         (HelpToggled and name == "CHudChat") then
             return false
     else
-        return true
+        return self.Sandbox.HUDShouldDraw(self, name)
     end
 end
 
@@ -404,5 +409,5 @@ function GM:HUDPaint()
     DrawHUD()
     DrawEntityDisplay()
 
-    self.BaseClass:HUDPaint()
+    self.Sandbox.HUDPaint(self)
 end
