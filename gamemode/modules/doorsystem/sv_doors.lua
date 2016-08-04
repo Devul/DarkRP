@@ -1,9 +1,9 @@
 local meta = FindMetaTable("Entity")
 local pmeta = FindMetaTable("Player")
 
-/*---------------------------------------------------------------------------
+--[[---------------------------------------------------------------------------
 Functions
----------------------------------------------------------------------------*/
+---------------------------------------------------------------------------]]
 
 function meta:doorIndex()
     return self:CreatedByMap() and self:MapCreationID() or nil
@@ -75,8 +75,8 @@ function meta:keysOwn(ply)
     end
 
     ply.OwnedNumz = ply.OwnedNumz or 0
-    if ply.OwnedNumz == 0 then
-        timer.Create(ply:UniqueID() .. "propertytax", 270, 0, function() ply.doPropertyTax(ply) end)
+    if ply.OwnedNumz == 0 and GAMEMODE.Config.propertytax then
+        timer.Create(ply:SteamID64() .. "propertytax", 270, 0, function() ply.doPropertyTax(ply) end)
     end
 
     ply.OwnedNumz = ply.OwnedNumz + 1
@@ -167,10 +167,10 @@ end
 
 function pmeta:initiateTax()
     local taxtime = GAMEMODE.Config.wallettaxtime
-    local uniqueid = self:UniqueID() -- so we can destroy the timer if the player leaves
-    timer.Create("rp_tax_" .. uniqueid, taxtime or 600, 0, function()
+    local uid = self:SteamID64() -- so we can destroy the timer if the player leaves
+    timer.Create("rp_tax_" .. uid, taxtime or 600, 0, function()
         if not IsValid(self) then
-            timer.Remove("rp_tax_" .. uniqueid)
+            timer.Remove("rp_tax_" .. uid)
 
             return
         end
@@ -210,9 +210,9 @@ function GM:canTax(ply)
     if ply:getDarkRPVar("money") < (GAMEMODE.Config.startingmoney * 2) then return false end
 end
 
-/*---------------------------------------------------------------------------
+--[[---------------------------------------------------------------------------
 Commands
----------------------------------------------------------------------------*/
+---------------------------------------------------------------------------]]
 local function SetDoorOwnable(ply)
     local trace = ply:GetEyeTrace()
     local ent = trace.Entity
@@ -409,11 +409,10 @@ local function UnOwnAll(ply, cmd, args)
         end
     end
     ply.OwnedNumz = 0
-    DarkRP.notify(ply, 2, 4, DarkRP.getPhrase("sold_x_doors", amount,DarkRP.formatMoney(amount * math.floor(((GAMEMODE.Config.doorcost * 0.66666666666666) + 0.5)))))
+    DarkRP.notify(ply, 2, 4, DarkRP.getPhrase("sold_x_doors", amount,DarkRP.formatMoney(amount * math.floor((GAMEMODE.Config.doorcost * 0.66666666666666) + 0.5))))
     return ""
 end
 DarkRP.defineChatCommand("unownalldoors", UnOwnAll)
-
 
 local function SetDoorTitle(ply, args)
     local trace = ply:GetEyeTrace()
@@ -533,4 +532,3 @@ local function AddDoorOwner(ply, args)
 end
 DarkRP.defineChatCommand("addowner", AddDoorOwner)
 DarkRP.defineChatCommand("ao", AddDoorOwner)
-

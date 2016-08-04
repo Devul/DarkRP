@@ -1,4 +1,3 @@
-local StarterGroups = {"superadmin", "admin", "user", "noaccess"}
 local ContinueNewGroup
 local EditGroups
 
@@ -79,7 +78,7 @@ FAdmin.StartHooks["1SetAccess"] = function() -- 1 in hook name so it will be exe
         menu:Open()
     end)
 
-    FAdmin.ScoreBoard.Server:AddPlayerAction("Edit groups", "fadmin/icons/access", Color(0, 155, 0, 255), true, EditGroups)
+    FAdmin.ScoreBoard.Server:AddPlayerAction("Edit groups", "fadmin/icons/access", Color(0, 155, 0, 255), function() return FAdmin.Access.PlayerHasPrivilege(LocalPlayer(), "ManageGroups") or FAdmin.Access.PlayerHasPrivilege(LocalPlayer(), "ManagePrivileges") end, EditGroups)
 
     -- Admin immunity
     FAdmin.ScoreBoard.Server:AddServerSetting(function()
@@ -111,7 +110,6 @@ end
 
 EditGroups = function()
     local frame, SelectedGroup, AddGroup, RemGroup, Privileges, SelectedPrivs, AddPriv, RemPriv, lblImmunity, nmbrImmunity
-    local plyGroup = FAdmin.Access.Groups[LocalPlayer():GetUserGroup()]
 
     frame = vgui.Create("DFrame")
     frame:SetTitle("Create, edit and remove groups")

@@ -1,6 +1,6 @@
-/*---------------------------------------------------------------------------
+--[[---------------------------------------------------------------------------
 Functions
----------------------------------------------------------------------------*/
+---------------------------------------------------------------------------]]
 local meta = FindMetaTable("Player")
 function meta:changeTeam(t, force, suppressNotification)
     local prevTeam = self:Team()
@@ -167,7 +167,7 @@ function meta:updateJob(job)
     self:setDarkRPVar("job", job)
     self.LastJob = CurTime()
 
-    timer.Create(self:UniqueID() .. "jobtimer", GAMEMODE.Config.paydelay, 0, function()
+    timer.Create(self:SteamID64() .. "jobtimer", GAMEMODE.Config.paydelay, 0, function()
         if not IsValid(self) then return end
         self:payDay()
     end)
@@ -225,9 +225,9 @@ function GM:canChangeJob(ply, args)
     return true
 end
 
-/*---------------------------------------------------------------------------
+--[[---------------------------------------------------------------------------
 Commands
----------------------------------------------------------------------------*/
+---------------------------------------------------------------------------]]
 local function ChangeJob(ply, args)
     if args == "" then
         DarkRP.notify(ply, 1, 4, DarkRP.getPhrase("invalid_x", "argument", ""))

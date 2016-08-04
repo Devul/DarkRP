@@ -11,110 +11,57 @@ local function declareTeamCommands(CTeam)
         end
     end
 
+    local chatcommandCondition = function(ply)
+        local plyTeam = ply:Team()
+
+        if plyTeam == k then return false end
+        if CTeam.admin == 1 and not ply:IsAdmin() or CTeam.admin == 2 and not ply:IsSuperAdmin() then return false end
+        if isnumber(CTeam.NeedToChangeFrom) and plyTeam ~= CTeam.NeedToChangeFrom then return false end
+        if istable(CTeam.NeedToChangeFrom) and not table.HasValue(CTeam.NeedToChangeFrom, plyTeam) then return false end
+        if CTeam.customCheck and CTeam.customCheck(ply) == false then return false end
+        if ply:isArrested() then return false end
+        if CTeam.max ~= 0 and ((CTeam.max % 1 == 0 and team.NumPlayers(k) >= CTeam.max) or (CTeam.max % 1 ~= 0 and (team.NumPlayers(k) + 1) / #player.GetAll() > CTeam.max)) then return false end
+        if ply.LastJob and 10 - (CurTime() - ply.LastJob) >= 0 then return false end
+        if ply.LastVoteCop and CurTime() - ply.LastVoteCop < 80 then return false end
+
+        return true
+    end
+
     if CTeam.vote or CTeam.RequiresVote then
         DarkRP.declareChatCommand{
             command = "vote" .. CTeam.command,
             description = "Vote to become " .. CTeam.name .. ".",
             delay = 1.5,
-            condition = fn.FAnd
-            {
-                fn.If(
-                    fn.Curry(isfunction, 2)(CTeam.RequiresVote),
-                    fn.Curry(fn.Flip(fn.FOr{fn.Curry(fn.Const, 2)(CTeam.RequiresVote), fn.Curry(fn.Const, 2)(-1)}()), 2)(k),
-                    fn.Curry(fn.Const, 2)(true)
-                )(),
-                fn.If(
-                    fn.Curry(isnumber, 2)(CTeam.NeedToChangeFrom),
-                    fn.Compose{fn.Curry(fn.Eq, 2)(CTeam.NeedToChangeFrom), plyMeta.Team},
-                    fn.If(
-                        fn.Curry(istable, 2)(CTeam.NeedToChangeFrom),
-                        fn.Compose{fn.Curry(table.HasValue, 2)(CTeam.NeedToChangeFrom), plyMeta.Team},
-                        fn.Curry(fn.Const, 2)(true)
-                    )()
-                )(),
-                fn.If(
-                    fn.Curry(isfunction, 2)(CTeam.customCheck),
-                    CTeam.customCheck,
-                    fn.Curry(fn.Const, 2)(true)
-                )(),
-                fn.Compose{fn.Curry(fn.Neq, 2)(k), plyMeta.Team},
-                fn.FOr {
-                    fn.Curry(fn.Lte, 3)(CTeam.admin)(0),
-                    fn.FAnd{fn.Curry(fn.Eq, 3)(CTeam.admin)(1), plyMeta.IsAdmin},
-                    fn.FAnd{fn.Curry(fn.Gte, 3)(CTeam.admin)(2), plyMeta.IsSuperAdmin}
-                }
-            }
+            condition =
+                function(ply)
+                    if CTeam.RequiresVote and not CTeam.RequiresVote(ply, k) then return false end
+                    if CTeam.canStartVote and not CTeam.canStartVote(ply) then return false end
+
+                    return chatcommandCondition(ply)
+                end
         }
 
         DarkRP.declareChatCommand{
             command = CTeam.command,
             description = "Become " .. CTeam.name .. " and skip the vote.",
             delay = 1.5,
-            condition = fn.FAnd {
-                fn.FOr {
-                    fn.FAnd {
-                        fn.FOr {
-                            fn.Curry(fn.Lte, 3)(CTeam.admin)(0),
-                            fn.FAnd{fn.Curry(fn.Eq, 3)(CTeam.admin)(1), plyMeta.IsAdmin},
-                            fn.FAnd{fn.Curry(fn.Gte, 3)(CTeam.admin)(2), plyMeta.IsSuperAdmin}
-                        },
-                        fn.If(
-                            fn.Curry(isfunction, 2)(CTeam.RequiresVote),
-                            fn.Curry(fn.Flip(fn.FOr{fn.Curry(fn.Const, 2)(CTeam.RequiresVote), fn.Curry(fn.Const, 2)(-1)}()), 2)(k),
-                            fn.FOr {
-                                fn.FAnd{fn.Curry(fn.Eq, 3)(CTeam.admin)(0), plyMeta.IsAdmin},
-                                fn.FAnd{fn.Curry(fn.Eq, 3)(CTeam.admin)(1), plyMeta.IsSuperAdmin}
-                            }
-                        )()
-                    }
-                },
-                fn.Compose{fn.Not, plyMeta.isArrested},
-                fn.If(
-                    fn.Curry(isnumber, 2)(CTeam.NeedToChangeFrom),
-                    fn.Compose{fn.Curry(fn.Eq, 2)(CTeam.NeedToChangeFrom), plyMeta.Team},
-                    fn.If(
-                        fn.Curry(istable, 2)(CTeam.NeedToChangeFrom),
-                        fn.Compose{fn.Curry(table.HasValue, 2)(CTeam.NeedToChangeFrom), plyMeta.Team},
-                        fn.Curry(fn.Const, 2)(true)
-                    )()
-                )(),
-                fn.If(
-                    fn.Curry(isfunction, 2)(CTeam.customCheck),
-                    CTeam.customCheck,
-                    fn.Curry(fn.Const, 2)(true)
-                )(),
-                fn.Compose{fn.Curry(fn.Neq, 2)(k), plyMeta.Team}
-            }
+            condition =
+                function(ply)
+                    local requiresVote = CTeam.RequiresVote and CTeam.RequiresVote(ply, k)
+
+                    if requiresVote then return false end
+                    if requiresVote ~= false and CTeam.admin == 0 and not ply:IsAdmin() or CTeam.admin == 1 and not ply:IsSuperAdmin() then return false end
+                    if CTeam.canStartVote and not CTeam.canStartVote(ply) then return false end
+
+                    return chatcommandCondition(ply)
+                end
         }
     else
         DarkRP.declareChatCommand{
             command = CTeam.command,
             description = "Become " .. CTeam.name .. ".",
             delay = 1.5,
-            condition = fn.FAnd
-            {
-                fn.Compose{fn.Not, plyMeta.isArrested},
-                fn.If(
-                    fn.Curry(isnumber, 2)(CTeam.NeedToChangeFrom),
-                    fn.Compose{fn.Curry(fn.Eq, 2)(CTeam.NeedToChangeFrom), plyMeta.Team},
-                    fn.If(
-                        fn.Curry(istable, 2)(CTeam.NeedToChangeFrom),
-                        fn.Compose{fn.Curry(table.HasValue, 2)(CTeam.NeedToChangeFrom), plyMeta.Team},
-                        fn.Curry(fn.Const, 2)(true)
-                    )()
-                )(),
-                fn.If(
-                    fn.Curry(isfunction, 2)(CTeam.customCheck),
-                    CTeam.customCheck,
-                    fn.Curry(fn.Const, 2)(true)
-                )(),
-                fn.Compose{fn.Curry(fn.Neq, 2)(k), plyMeta.Team},
-                fn.FOr {
-                    fn.Curry(fn.Lte, 3)(CTeam.admin)(0),
-                    fn.FAnd{fn.Curry(fn.Eq, 3)(CTeam.admin)(1), plyMeta.IsAdmin},
-                    fn.FAnd{fn.Curry(fn.Gte, 3)(CTeam.admin)(2), plyMeta.IsSuperAdmin}
-                }
-            }
+            condition = chatcommandCondition
         }
     end
 end
@@ -309,18 +256,19 @@ local function addTeamCommands(CTeam, max)
 
         local target = DarkRP.findPlayer(args[1])
 
-        if (target) then
-            target:changeTeam(k, true)
-            local nick
-            if (ply:EntIndex() ~= 0) then
-                nick = ply:Nick()
-            else
-                nick = "Console"
-            end
-            DarkRP.notify(target, 0, 4, DarkRP.getPhrase("x_made_you_a_y", nick, CTeam.name))
-        else
+        if not target then
             DarkRP.printConsoleMessage(ply, DarkRP.getPhrase("could_not_find", tostring(args[1])))
+            return
         end
+
+        target:changeTeam(k, true)
+        local nick
+        if (ply:EntIndex() ~= 0) then
+            nick = ply:Nick()
+        else
+            nick = "Console"
+        end
+        DarkRP.notify(target, 0, 4, DarkRP.getPhrase("x_made_you_a_y", nick, CTeam.name))
     end)
 end
 
@@ -329,22 +277,17 @@ local function addEntityCommands(tblEnt)
         command = tblEnt.cmd,
         description = "Purchase a " .. tblEnt.name,
         delay = 2,
-        condition = fn.FAnd
-        {
-            fn.Compose{fn.Not, plyMeta.isArrested},
-            fn.If(
-                fn.Curry(istable, 2)(tblEnt.allowed),
-                fn.Compose{fn.Curry(table.HasValue, 2)(tblEnt.allowed), plyMeta.Team},
-                fn.Curry(fn.Const, 2)(true)
-            )(),
-            fn.If(
-                fn.Curry(isfunction, 2)(tblEnt.customCheck),
-                tblEnt.customCheck,
-                fn.Curry(fn.Const, 2)(true)
-            )(),
-            fn.Curry(fn.Flip(plyMeta.canAfford), 2)(tblEnt.price)
-        }
+        condition =
+            function(ply)
+                if ply:isArrested() then return false end
+                if istable(tblEnt.allowed) and not table.HasValue(tblEnt.allowed, ply:Team()) then return false end
+                if not ply:canAfford(tblEnt.price) then return false end
+                if tblEnt.customCheck and tblEnt.customCheck(ply) == false then return false end
+
+                return true
+            end
     }
+
     if CLIENT then return end
 
     -- Default spawning function of an entity
@@ -437,16 +380,16 @@ end
 plyMeta.getJobTable = function(ply)
     local tbl = RPExtraTeams[ply:Team()]
     -- don't error when the player has not fully joined yet
-    if not tbl and ply.DarkRPInitialised then
+    if not tbl and (ply.DarkRPInitialised or ply.DarkRPDataRetrievalFailed) then
         DarkRP.error(
             string.format("There is a player with an invalid team!\n\nThe player's name is %s, their team number is \"%s\", which has the name \"%s\"",
-                ply == Entity(0) and "Console" or IsValid(ply) and ply:Nick() or "unknown",
+                ply:EntIndex() == 0 and "Console" or IsValid(ply) and ply:Nick() or "unknown",
                 ply:Team(),
                 team.GetName(ply:Team())),
             1,
             {
                 "It is the server owner's responsibility to figure out why that player has no valid team.",
-                "This error is very likely to be caused by an earlier error. If you don't see any errors in your own console. Look at the server console."
+                "This error is very likely to be caused by an earlier error. If you don't see any errors in your own console, look at the server console."
             }
         )
     end
@@ -633,9 +576,9 @@ AddCustomVehicle = DarkRP.createVehicle
 
 DarkRP.removeVehicle = fp{removeCustomItem, CustomVehicles, "vehicles", "onVehicleRemoved", true}
 
-/*---------------------------------------------------------------------------
+--[[---------------------------------------------------------------------------
 Decides whether a custom job or shipmet or whatever can be used in a certain map
----------------------------------------------------------------------------*/
+---------------------------------------------------------------------------]]
 function GM:CustomObjFitsMap(obj)
     if not obj or not obj.maps then return true end
 

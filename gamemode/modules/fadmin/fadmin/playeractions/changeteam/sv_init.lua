@@ -4,8 +4,9 @@ local function checkDarkRP(ply, target, t)
     local TEAM = RPExtraTeams[t]
     if not TEAM then return true end
 
-    if TEAM.customCheck and not TEAM.customCheck(target) then
-        return false
+    if TEAM.customCheck then
+        local ret = TEAM.customCheck(target)
+        if ret ~= nil then return ret end
     end
 
     local hookValue = hook.Call("playerCanChangeTeam", nil, target, t, true)
@@ -30,9 +31,9 @@ local function SetTeam(ply, cmd, args)
         if k == tonumber(args[2]) or string.lower(v.Name) == string.lower(args[2] or "") then
             for _, target in pairs(targets) do
                 if not FAdmin.Access.PlayerHasPrivilege(ply, "SetTeam", target) then FAdmin.Messages.SendMessage(ply, 5, "No access!") return false end
-                local SetTeam = target.changeTeam or target.SetTeam -- DarkRP compatibility
+                local setTeam = target.changeTeam or target.SetTeam -- DarkRP compatibility
                 if IsValid(target) and checkDarkRP(ply, target, k) then
-                    SetTeam(target, k, true)
+                    setTeam(target, k, true)
                 end
             end
 
